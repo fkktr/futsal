@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>偽ピヴォ パターン集</title>
+<style>
+  :root{
+    --bg:#FAFAF7; --court:#EEF3EA; --line:#B9C4B4; --ink:#2B2F2C; --muted:#6E756F;
+    --atk:#2F6F73; --def:#B5654A; --space:#E9C46A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;line-height:1.6}
+  .wrap{max-width:560px;margin:0 auto;padding:20px 16px 32px}
+  h1{font-size:18px;font-weight:600;margin:0 0 10px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .tabs button{flex:1 1 auto}
+  h2{font-size:16px;font-weight:600;margin:0 0 2px}
+  .sub{font-size:13px;color:var(--muted);margin:0 0 10px}
+  svg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:6px;background:var(--court)}
+  .caption{min-height:3.2em;margin:12px 0 10px;font-size:15px;padding-left:12px;border-left:3px solid var(--atk)}
+  .caption b{font-weight:600}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  button{font:inherit;font-size:14px;padding:7px 12px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;cursor:pointer}
+  button:hover{border-color:var(--atk)}
+  button:focus-visible{outline:2px solid var(--atk);outline-offset:2px}
+  button.primary{background:var(--atk);color:#fff;border-color:var(--atk)}
+  button.on{border-color:var(--atk);color:var(--atk);font-weight:600}
+  .tabs button.on{background:#E4EEEE}
+  .legend{display:flex;gap:16px;margin-top:14px;font-size:12px;color:var(--muted)}
+  .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+  .legend .a::before{background:var(--atk)} .legend .d::before{background:var(--def)}
+  .legend .s::before{background:var(--space);border-radius:2px}
+  text{font-family:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>偽ピヴォ パターン集</h1>
+  <div class="tabs" id="tabs"></div>
+  <h2 id="title"></h2>
+  <p class="sub" id="sub"></p>
+
+  <svg id="pitch" viewBox="0 0 400 520" aria-label="フットサル戦術アニメーション">
+    <rect x="20" y="20" width="360" height="490" fill="none" stroke="var(--line)" stroke-width="2"/>
+    <path d="M110 20 A90 90 0 0 0 200 110 A90 90 0 0 0 290 20" fill="none" stroke="var(--line)" stroke-width="2"/>
+    <rect x="170" y="14" width="60" height="8" fill="#fff" stroke="var(--line)" stroke-width="2"/>
+    <line x1="20" y1="510" x2="380" y2="510" stroke="var(--line)" stroke-width="2" stroke-dasharray="6 6"/>
+    <circle cx="200" cy="80" r="3" fill="var(--line)"/>
+    <g id="overlays"></g>
+    <g id="players"></g>
+    <circle id="ball" r="6" fill="#fff" stroke="var(--ink)" stroke-width="1.5"/>
+  </svg>
+
+  <div class="caption" id="caption"></div>
+  <div class="controls" id="controls"><button class="primary" id="play">再生</button></div>
+  <div class="legend"><span class="a">攻撃側</span><span class="d">守備側</span><span class="s">狙うスペース</span></div>
+</div>
+
+<script>
+(function(){
+  // ---------- 共通の初期配置 ----------
+  const ATK = {F:['FIX',200,470], A1:['ALA',80,330], A2:['ALA',320,330], P:['PIV',200,130]};
+  const GK  = {GK:['GK',200,40]};
+  const MAN = {D1:['D1',200,100], D2:['D2',100,290], D3:['D3',300,290], D4:['D4',200,400]};
+  const SQ  = {DB1:['後',140,140], DB2:['後',260,140], DF1:['前',120,300], DF2:['前',280,300]};
+
+  // keyframe: [time,x,y]  overlay: {tag, attrs, in:[a,b], out:[c,d]}
+  const PATTERNS = [
+  {
+    tab:'対 マンツー：アラが裏へ',
+    title:'偽ピヴォ 対 マンツーマン',
+    sub:'ピヴォが下がってマーカーを引きずり出し、空いた前線へアラが斜めに走り込む。',
+    players:{...GK,...MAN,...ATK},
+    K:{
+      GK:[[0,200,40],[5.5,200,40],[5.9,214,42],[6.3,214,42],[6.9,185,45]],
+      A1:[[0,80,330],[3.4,80,330],[4.9,120,270],[5.2,120,270],[6.2,150,95],[6.9,175,60]],
+      A2:[[0,320,330],[3.4,320,330],[4.9,252,122],[5.8,245,105],[6.9,235,95]],
+      P: [[0,200,130],[1,200,130],[2.5,172,250],[3.4,172,250],[4.9,165,285],[6.2,195,300],[6.9,200,310]],
+      F: [[0,200,470],[4.9,200,470],[6.9,200,440]],
+      D1:[[0,200,100],[1,200,100],[2.6,182,222],[3.4,182,222],[4.9,205,215],[6.9,210,120]],
+      D2:[[0,100,290],[3.4,100,290],[4.9,120,255],[5.2,120,255],[6.2,140,150],[6.9,160,110]],
+      D3:[[0,300,290],[3.4,300,290],[4.9,290,190],[6.9,270,130]],
+      D4:[[0,200,400],[3.4,200,400],[4.9,215,380],[6.9,215,360]],
+      ball:[[0,200,455],[2.6,200,455],[3.3,172,236],[4.1,172,236],[4.9,252,122],[5.2,252,122],[5.8,212,42],[6.0,212,42],[6.3,165,72],[6.6,165,72],[7.0,195,30]]
+    },
+    overlays:[
+      {tag:'ellipse',attrs:{cx:240,cy:130,rx:70,ry:45,fill:'var(--space)'},in:[1.6,2.6],out:[5.2,5.6],op:.55},
+      {tag:'text',attrs:{x:240,y:135,'text-anchor':'middle','font-size':13,fill:'#7A5A10'},text:'空いたスペース',in:[1.8,2.6],out:[5.2,5.6]},
+      {tag:'path',attrs:{d:'M200 130 L172 250'},arrow:true,in:[1,1.4],out:[3.4,3.8]},
+      {tag:'path',attrs:{d:'M320 330 L252 122'},arrow:true,in:[3.4,3.7],out:[5,5.3]},
+      {tag:'path',attrs:{d:'M120 270 L150 95'},arrow:true,in:[5.2,5.5],out:[6.4,6.7]},
+      {tag:'ellipse',attrs:{cx:198,cy:375,rx:75,ry:100,fill:'none',stroke:'var(--atk)','stroke-width':1.5,'stroke-dasharray':'4 4'},in:[5.2,5.7],out:[9,9],op:.7},
+      {tag:'text',attrs:{x:198,y:495,'text-anchor':'middle','font-size':12,fill:'var(--atk)'},text:'PIVとFIXは中央に残る',in:[5.3,5.7],out:[9,9]}
+    ],
+    caps:[
+      [0,'初期配置','<b>初期配置（3-1）</b>：ピヴォが最前線に張り、D1が背後で密着マーク。前線に空きはない。'],
+      [1,'① 下がる','<b>① ピヴォが下がる</b>：ボールに近づくように後方へ降りる。D1は置いていけずについてくる。'],
+      [2.6,'② 受ける','<b>② 下がった位置で受ける</b>：フィクソからの縦パスをD1を背負って受ける。この時点で前線は無人。'],
+      [3.4,'③ 走り込む','<b>③ アラが斜めに走り込む</b>：逆サイドのアラが空いたスペースへ。ピヴォは落とし（ワンタッチ）で送る。D3の対応は遅れる。'],
+      [5,'④ シュート','<b>④ シュート</b>：フリーで受けてフィニッシュ。同時に逆サイドのアラがこぼれ球を詰めに入る。'],
+      [5.9,'⑤ 詰めと残り','<b>⑤ 詰める2人、残る2人</b>：GKが弾いたボールを左アラが押し込む。落としたピヴォは前に行かず中央に残り、フィクソと2枚でカウンターの最初のパスコースを消す。<br>前に行くのは打つ人と詰める人まで。']
+    ],
+    end:7.4
+  },
+  {
+    tab:'対 マンツー：ついてこない',
+    title:'偽ピヴォ 対 マンツーマン（マーカーが残る）',
+    sub:'下がってもD1がついてこない。ならばピヴォがフリーで前を向く。判断はこの二択。',
+    players:{...GK,...MAN,...ATK},
+    K:{
+      A1:[[0,80,330],[3.3,80,330],[4.8,70,200]],
+      A2:[[0,320,330],[3.3,320,330],[4.8,330,200]],
+      P: [[0,200,130],[1,200,130],[2.5,200,250],[3.3,200,250],[4.4,200,175],[4.9,200,170]],
+      D1:[[0,200,100],[1,200,100],[2.5,200,112],[3.3,200,112],[4.4,200,135]],
+      D2:[[0,100,290],[3.3,100,290],[4.8,90,215]],
+      D3:[[0,300,290],[3.3,300,290],[4.8,310,215]],
+      D4:[[0,200,400],[3.3,200,400],[4.8,210,340]],
+      ball:[[0,200,455],[2.5,200,455],[3.2,200,236],[3.5,200,236],[4.4,200,162],[4.7,200,162],[5.4,190,30]]
+    },
+    overlays:[
+      {tag:'ellipse',attrs:{cx:200,cy:230,rx:80,ry:55,fill:'var(--space)'},in:[1.8,2.6],out:[4.4,4.8],op:.55},
+      {tag:'text',attrs:{x:200,y:300,'text-anchor':'middle','font-size':13,fill:'#7A5A10'},text:'ライン間でフリー',in:[2,2.6],out:[4.4,4.8]},
+      {tag:'path',attrs:{d:'M200 130 L200 250'},arrow:true,in:[1,1.4],out:[3.3,3.7]}
+    ],
+    caps:[
+      [0,'初期配置','<b>初期配置（3-1）</b>：前のパターンと同じ形。違いは相手D1の判断だけ。'],
+      [1,'① 下がる','<b>① ピヴォが下がる</b>：D1は裏を警戒してついてこない（ゾーン気味に残る）。ピヴォはライン間で完全にフリー。'],
+      [2.6,'② 前を向く','<b>② 受けて前を向く</b>：背負わずに受けられるので、そのままターン。前線で4対3の数的優位。'],
+      [3.5,'③ 運ぶ','<b>③ 運んでシュート</b>：D1が遅れて出てくれば、その裏へアラが抜ける。出てこなければそのまま打つ。<br>「ついてくれば裏、来なければ前向き」の使い分け。']
+    ],
+    end:5.9
+  },
+  {
+    tab:'対 スクエア：引き出す',
+    title:'偽ピヴォ 対 2-2（スクエア）',
+    sub:'後ろ2枚の片方を引き出し、中央に空く縦の穴をフィクソが抜ける。',
+    players:{...GK,...SQ,...ATK},
+    K:{
+      GK:[[0,200,40],[5.2,200,40],[5.7,196,40],[6.1,196,40],[6.9,190,45]],
+      F: [[0,200,470],[2.6,200,470],[2.9,205,450],[4.9,240,125],[5.8,235,105],[7.0,230,100]],
+      A1:[[0,80,330],[3.4,80,330],[4.9,60,300],[5.3,60,300],[6.3,135,95],[7.0,175,60]],
+      A2:[[0,320,330],[3.4,320,330],[4.9,340,300],[5.3,340,300],[7.0,255,385]],
+      P: [[0,200,130],[1,200,130],[2.5,226,250],[3.4,226,250],[4.9,215,275],[6.3,205,325],[7.0,205,335]],
+      DB1:[[0,140,140],[3.4,140,140],[4.9,165,135],[5.3,165,135],[7.0,150,100]],
+      DB2:[[0,260,140],[1,260,140],[2.6,236,215],[3.4,236,215],[4.9,255,205],[7.0,250,140]],
+      DF1:[[0,120,300],[3.4,120,300],[4.9,95,300],[5.3,95,300],[7.0,120,180]],
+      DF2:[[0,280,300],[3.4,280,300],[4.9,262,225],[7.0,265,215]],
+      ball:[[0,200,455],[2.6,200,455],[3.3,226,236],[4.1,226,236],[4.9,240,125],[5.2,240,125],[5.8,196,42],[6.0,196,42],[6.3,130,75],[6.6,130,75],[7.0,195,30]]
+    },
+    overlays:[
+      {tag:'path',attrs:{d:'M120 300 L280 300 M140 140 L260 140',stroke:'var(--def)','stroke-width':1.5,'stroke-dasharray':'4 5',fill:'none'},in:[-1,0],out:[1,1.6],op:.5},
+      {tag:'ellipse',attrs:{cx:235,cy:135,rx:50,ry:60,fill:'var(--space)'},in:[1.6,2.6],out:[5.2,5.6],op:.55},
+      {tag:'text',attrs:{x:235,y:140,'text-anchor':'middle','font-size':13,fill:'#7A5A10'},text:'縦の穴',in:[1.8,2.6],out:[5.2,5.6]},
+      {tag:'path',attrs:{d:'M200 130 L226 250'},arrow:true,in:[1,1.4],out:[3.4,3.8]},
+      {tag:'path',attrs:{d:'M200 455 L240 125'},arrow:true,in:[2.7,3.1],out:[5,5.3]},
+      {tag:'path',attrs:{d:'M60 300 L135 95'},arrow:true,in:[5.3,5.6],out:[6.5,6.8]},
+      {tag:'ellipse',attrs:{cx:225,cy:355,rx:80,ry:90,fill:'none',stroke:'var(--atk)','stroke-width':1.5,'stroke-dasharray':'4 4'},in:[5.3,5.8],out:[9,9],op:.7},
+      {tag:'text',attrs:{x:225,y:465,'text-anchor':'middle','font-size':12,fill:'var(--atk)'},text:'PIVと右ALAが中央に残る',in:[5.4,5.8],out:[9,9]}
+    ],
+    caps:[
+      [0,'初期配置','<b>初期配置</b>：相手は2-2。後ろ2枚が中央をゾーンで分担し、ピヴォはその「あいだ」に立つ。担当がどちらか曖昧な位置。'],
+      [1,'① 下がる','<b>① 片側に寄って下がる</b>：ボールサイドの後ろ（右）へ寄りながら降りる。担当が決まってしまい、右の後ろが出てくる。'],
+      [2.6,'② 受ける','<b>② 受ける</b>：後ろは残り1枚。中央に1人分の縦の穴が空く。アラは幅を取り、前2枚を外に釘付けにする。'],
+      [3.4,'③ 縦に抜ける','<b>③ フィクソが中央を縦に抜ける</b>：前2枚はアラに引かれて中を締められない。ピヴォがワンタッチで落とす。'],
+      [5,'④ シュート','<b>④ シュート</b>：偽ピヴォ＋フィクソ上がりで、3-1が一瞬4-0になる。同時に左アラがこぼれ球へ入る。'],
+      [5.9,'⑤ 詰めと残り','<b>⑤ 詰める2人、残る2人</b>：GKが弾いた球を左アラが押し込む。フィクソが前に行った分、落としたピヴォが中央に下がり、右アラも内に絞って2枚で残る。']
+    ],
+    end:7.4
+  },
+  {
+    tab:'対 スクエア：釘付け',
+    title:'ピヴォを残す 対 2-2（スクエア）',
+    sub:'ピヴォは動かず、後ろ2枚のあいだに立ち続けて釘付けにする。空くのはライン間。',
+    players:{...GK,...SQ,...ATK},
+    K:{
+      F: [[0,200,470],[4,200,470],[5,200,420]],
+      A1:[[0,80,330],[1,80,330],[2.2,150,230],[4.2,150,230],[5,140,240]],
+      A2:[[0,320,330],[3.4,320,330],[4.8,300,190],[5.8,285,150]],
+      P: [[0,200,130],[1,200,130],[1.8,203,125],[5.8,210,125]],
+      DB1:[[0,140,140],[1,140,140],[2.2,172,120],[5.8,172,122]],
+      DB2:[[0,260,140],[1,260,140],[2.2,234,120],[4.8,236,122],[5.8,255,140]],
+      DF1:[[0,120,300],[2.2,120,300],[3.2,132,272],[4.2,140,258],[5,150,250]],
+      DF2:[[0,280,300],[3.2,280,300],[4.2,215,255],[5,205,250]],
+      ball:[[0,200,455],[1,200,455],[1.7,203,141],[2.0,203,141],[2.6,150,215],[4.2,150,215],[4.8,300,190],[5.1,300,190],[5.8,212,30]]
+    },
+    overlays:[
+      {tag:'ellipse',attrs:{cx:200,cy:225,rx:95,ry:40,fill:'var(--space)'},in:[1.2,2.0],out:[9,9],op:.55},
+      {tag:'text',attrs:{x:200,y:280,'text-anchor':'middle','font-size':13,fill:'#7A5A10'},text:'ライン間（前2枚 vs 3人）',in:[1.4,2.0],out:[9,9]},
+      {tag:'path',attrs:{d:'M80 330 L150 230'},arrow:true,in:[1,1.3],out:[2.4,2.8]},
+      {tag:'path',attrs:{d:'M320 330 L300 190'},arrow:true,in:[3.4,3.7],out:[5,5.3]}
+    ],
+    caps:[
+      [0,'初期配置','<b>初期配置</b>：同じ2-2。ピヴォは後ろ2枚の中間、ゴール側に半歩。どちらも「自分が出たら相手がフリー」になる位置。'],
+      [1,'① 足元で受ける','<b>① 縦パスを足元で受ける</b>：後ろ2枚は前を向かれるのが怖いので背中に張り付く。同時にアラが内側のライン間へ入る。'],
+      [2.0,'② 落とし','<b>② アラへ落とす</b>：ピヴォはライン間に入ってきたアラへワンタッチで落とす。アラは前を向いて受けられる。'],
+      [3.4,'③ 3対2','<b>③ 前2枚に対して3対2</b>：前が中を締めに来れば、外のアラがフリー。後ろ2枚はピヴォから離れられない。'],
+      [5.1,'④ シュート','<b>④ シュート</b>：後ろ2枚は最後まで動けていない。「引き出す」と「釘付け」は表裏で、後ろが出てくるかどうかで選ぶ。']
+    ],
+    end:6.3
+  },
+  {
+    tab:'対 マンツー：サイド落ち→パラレラ',
+    title:'サイドへ落ちる偽ピヴォ 対 マンツーマン',
+    sub:'ピヴォがボール側のタッチライン際へ降り、出したアラがそのまま縦に抜ける（同サイド）。',
+    players:{...GK,...MAN,...ATK},
+    K:{
+      GK:[[0,200,40],[5.6,200,40],[6.1,214,42],[6.4,214,42],[7.3,185,45]],
+      A1:[[0,80,330],[3.0,80,330],[4.3,45,125],[5.0,75,95],[6.4,75,95],[7.0,148,90],[7.3,170,65]],
+      A2:[[0,320,330],[4.4,320,330],[5.5,250,80],[6.0,240,70],[7.3,230,80]],
+      P: [[0,200,130],[1,200,130],[2.4,78,232],[4.3,78,232],[5.5,110,250],[6.6,190,300],[7.3,195,310]],
+      F: [[0,200,470],[3.0,200,470],[5.0,200,410],[7.3,200,430]],
+      D1:[[0,200,100],[1,200,100],[2.5,100,205],[4.3,100,205],[5.5,120,220],[7.3,160,140]],
+      D2:[[0,100,290],[3.0,100,290],[4.3,85,205],[5.0,95,150],[7.3,135,110]],
+      D3:[[0,300,290],[4.4,300,290],[5.5,260,110],[7.3,250,110]],
+      D4:[[0,200,400],[5.5,205,380],[7.3,210,360]],
+      ball:[[0,88,345],[2.4,88,345],[2.9,84,248],[3.4,84,248],[4.2,50,130],[4.8,50,130],[5.4,250,80],[5.6,250,80],[6.1,214,42],[6.3,214,42],[6.6,150,85],[6.9,150,85],[7.3,195,30]]
+    },
+    overlays:[
+      {tag:'ellipse',attrs:{cx:70,cy:130,rx:45,ry:70,fill:'var(--space)'},in:[1.6,2.4],out:[5.6,6.0],op:.55},
+      {tag:'text',attrs:{x:75,y:135,'text-anchor':'middle','font-size':12,fill:'#7A5A10'},text:'縦の',in:[1.8,2.4],out:[5.6,6.0]},
+      {tag:'text',attrs:{x:75,y:150,'text-anchor':'middle','font-size':12,fill:'#7A5A10'},text:'チャンネル',in:[1.8,2.4],out:[5.6,6.0]},
+      {tag:'path',attrs:{d:'M200 130 L78 232'},arrow:true,in:[1,1.4],out:[3.4,3.8]},
+      {tag:'path',attrs:{d:'M80 330 L45 125'},arrow:true,in:[3.0,3.3],out:[4.8,5.1]},
+      {tag:'ellipse',attrs:{cx:195,cy:370,rx:75,ry:100,fill:'none',stroke:'var(--atk)','stroke-width':1.5,'stroke-dasharray':'4 4'},in:[5.6,6.1],out:[9,9],op:.7},
+      {tag:'text',attrs:{x:195,y:490,'text-anchor':'middle','font-size':12,fill:'var(--atk)'},text:'PIVとFIXは中央に残る',in:[5.7,6.1],out:[9,9]}
+    ],
+    caps:[
+      [0,'初期配置','<b>初期配置</b>：ボールは左アラ。ピヴォは中央、D1が背後にいる。'],
+      [1,'① サイドへ降りる','<b>① タッチライン際へ降りる</b>：ボール側のサイド、アラの前へ。D1は外まで引きずり出され、タッチライン沿いに縦のチャンネルが空く。'],
+      [2.4,'② 足元へ','<b>② アラがピヴォの足元へ</b>：短い縦パス。D2は「出したら終わり」ではなく、この後の縦走りに備える必要がある。'],
+      [3.0,'③ パラレラ','<b>③ 出したアラがそのまま縦へ</b>：パス&ゴーでライン沿いを抜ける。ピヴォはワンタッチで縦に落とす。逆サイドが遠いときはこちらが速い。'],
+      [4.8,'④ 折り返し','<b>④ セグンド</b>：抜けたアラは角度がないので、ファーへ走る逆サイドのアラに折り返す。D3はボールと相手を同時に見られていない。'],
+      [6.1,'⑤ 詰めと残り','<b>⑤ 詰める2人、残る2人</b>：GKが弾いた球を、折り返したアラがニアに入って押し込む。前線はアラ2枚。落としたピヴォは中央に戻り、フィクソと2枚で残る。']
+    ],
+    end:7.7
+  },
+  {
+    tab:'対 スクエア：ダブルピヴォ',
+    title:'ダブルピヴォ 対 2-2（スクエア）',
+    sub:'アラの片方を最前線に上げて後ろ2枚に1人ずつ担当を持たせ、完全に釘付けにする。',
+    players:{...GK,...SQ,...ATK},
+    K:{
+      GK:[[0,200,40],[5.2,200,40],[5.8,214,42],[6.2,214,42],[7.1,190,45]],
+      F: [[0,200,470],[1,200,470],[2.4,200,470],[3.6,200,270],[4.3,195,285],[6.2,195,285],[7.1,200,380]],
+      A1:[[0,80,330],[2.4,80,330],[3.8,90,260],[4.3,90,260],[5.0,110,190],[5.9,120,175],[7.1,125,170]],
+      A2:[[0,320,330],[1,320,330],[2.2,262,135],[6.1,262,135],[6.8,240,85],[7.1,225,65]],
+      P: [[0,200,130],[1,200,130],[2.2,148,130],[6.2,148,130],[7.1,165,265]],
+      DB1:[[0,140,140],[1,140,140],[2.2,150,110],[6.2,150,112],[7.1,160,140]],
+      DB2:[[0,260,140],[1,260,140],[2.2,258,110],[6.2,258,112],[7.1,245,95]],
+      DF1:[[0,120,300],[2.4,120,300],[3.6,165,255],[4.3,150,250],[5.0,125,215],[7.1,135,210]],
+      DF2:[[0,280,300],[2.4,280,300],[3.6,235,255],[4.3,225,250],[5.0,200,230],[7.1,205,225]],
+      ball:[[0,200,455],[2.4,200,455],[3.6,200,255],[3.8,200,255],[4.3,90,246],[5.0,110,178],[5.2,110,178],[5.8,214,42],[6.0,214,42],[6.4,235,82],[6.7,235,82],[7.1,195,30]]
+    },
+    overlays:[
+      {tag:'path',attrs:{d:'M140 140 L260 140',stroke:'var(--def)','stroke-width':1.5,'stroke-dasharray':'4 5',fill:'none'},in:[-1,0],out:[1,1.6],op:.5},
+      {tag:'ellipse',attrs:{cx:200,cy:255,rx:110,ry:50,fill:'var(--space)'},in:[1.8,2.4],out:[5.2,5.6],op:.55},
+      {tag:'text',attrs:{x:200,y:320,'text-anchor':'middle','font-size':13,fill:'#7A5A10'},text:'前2枚だけが守る空間',in:[2.0,2.4],out:[5.2,5.6]},
+      {tag:'path',attrs:{d:'M320 330 L262 135'},arrow:true,in:[1,1.3],out:[2.6,3.0]},
+      {tag:'path',attrs:{d:'M200 455 L200 270'},arrow:true,in:[2.4,2.7],out:[3.8,4.2]},
+      {tag:'path',attrs:{d:'M148 130 L165 265'},arrow:true,in:[6.0,6.3],out:[9,9]},
+      {tag:'ellipse',attrs:{cx:185,cy:330,rx:80,ry:95,fill:'none',stroke:'var(--atk)','stroke-width':1.5,'stroke-dasharray':'4 4'},in:[6.0,6.4],out:[9,9],op:.7},
+      {tag:'text',attrs:{x:185,y:445,'text-anchor':'middle','font-size':12,fill:'var(--atk)'},text:'PIVが下がり、FIXと2枚で残る',in:[6.1,6.4],out:[9,9]}
+    ],
+    caps:[
+      [0,'初期配置','<b>初期配置</b>：2-2の後ろ2枚に対してピヴォは1枚。「あいだに立つ」は効くが、担当が曖昧な分どちらかが出てくる余地は残る。'],
+      [1,'① アラを上げる','<b>① 逆サイドのアラを最前線へ</b>：ピヴォと並んで2枚。後ろ2枚は1人ずつ担当ができ、どちらも出られない。攻撃は一時的に2-2。'],
+      [2.4,'② 運ぶ','<b>② フィクソがライン間へ運ぶ</b>：後ろの助けが来ないので、前2枚は2人で2人を見るしかない。運ぶだけで前2枚が両方寄ってくる。'],
+      [3.8,'③ 外へ','<b>③ 空いたアラへ</b>：前2枚が中に絞った分、左アラがフリー。前を向いて受けて運ぶ。'],
+      [5.2,'④ シュート','<b>④ シュート</b>：後ろ2枚は最後まで動けない。前線の2枚はシュートの瞬間までマーカーを離さない。'],
+      [6.0,'⑤ 詰めと残り','<b>⑤ 詰める1人、下がる1人</b>：GKが弾いた球を右の前線が詰める。左の前線（ピヴォ）は前に行かず下がり、フィクソと2枚で残る。この形は前に4人いるので、ここを怠るとカウンターで一番危ない。']
+    ],
+    end:7.5
+  },
+  {
+    tab:'対 1-2-1 プレス',
+    title:'偽ピヴォ 対 1-2-1 前プレス',
+    sub:'前から来る相手には、ピヴォが降りて逃げ道になる。裏を狙うより、プレスを一枚外して前進するのが目的。',
+    players:{...GK,DT:['前',200,380],DM1:['中',110,300],DM2:['中',290,300],DBk:['後',200,150],...ATK},
+    K:{
+      F: [[0,200,470],[2.9,200,470],[4.2,180,430]],
+      A1:[[0,80,330],[2.9,80,330],[4.2,70,290],[5.5,110,220]],
+      A2:[[0,320,330],[2.9,320,330],[4.2,332,270],[5.5,320,170],[6.0,325,160]],
+      P: [[0,200,130],[1,200,130],[2.2,200,270],[4.2,200,270],[5.5,250,115],[6.2,245,100]],
+      DT:[[0,200,380],[1,200,400],[2.2,200,410],[2.9,200,400],[4.2,190,330]],
+      DM1:[[0,110,300],[2.9,110,300],[4.2,150,275],[5.5,130,240]],
+      DM2:[[0,290,300],[2.9,290,300],[4.2,250,275],[5.5,300,215]],
+      DBk:[[0,200,150],[1,200,150],[2.2,200,195],[4.2,200,200],[5.5,275,175]],
+      ball:[[0,200,455],[2.2,200,455],[2.8,200,256],[3.3,200,256],[4.0,332,270],[4.4,332,270],[5.4,320,170],[5.6,320,170],[6.1,250,115],[6.3,250,115],[6.8,200,30]]
+    },
+    overlays:[
+      {tag:'ellipse',attrs:{cx:200,cy:255,rx:55,ry:45,fill:'var(--space)'},in:[1.4,2.2],out:[4.2,4.6],op:.55},
+      {tag:'text',attrs:{x:200,y:315,'text-anchor':'middle','font-size':13,fill:'#7A5A10'},text:'中盤2枚のあいだ',in:[1.6,2.2],out:[4.2,4.6]},
+      {tag:'ellipse',attrs:{cx:240,cy:120,rx:60,ry:45,fill:'var(--space)'},in:[5.5,5.9],out:[9,9],op:.55},
+      {tag:'path',attrs:{d:'M200 130 L200 270'},arrow:true,in:[1,1.4],out:[2.9,3.3]},
+      {tag:'path',attrs:{d:'M200 270 L250 115'},arrow:true,in:[5.4,5.7],out:[6.3,6.6]}
+    ],
+    caps:[
+      [0,'初期配置','<b>初期配置</b>：相手は1-2-1で前から圧力。前1枚がフィクソへ寄せ、中盤2枚が両アラを消し、後ろ1枚がピヴォを見る。'],
+      [1,'① 降りる','<b>① 中盤2枚のあいだへ降りる</b>：後ろ1枚は最終ラインを空けられず、深くは追えない。ピヴォがボールの逃げ道になる。'],
+      [2.2,'② 縦パス','<b>② プレスの脇を通す縦パス</b>：前1枚の横を通してピヴォの足元へ。ここで前1枚は置き去りになる。'],
+      [2.9,'③ 落として剥がす','<b>③ 外のアラへ落とす</b>：中盤2枚がピヴォに絞った分、アラがフリー。これでプレスの前3枚を越えた。'],
+      [4.4,'④ 前進','<b>④ 数的優位で前進</b>：後ろ1枚がアラに出てくれば中央が空く。ピヴォがそこへ入って仕上げ。裏より「剥がして前進」が主目的。']
+    ],
+    end:7.2
+  }];
+
+  // ---------- エンジン ----------
+  const NS='http://www.w3.org/2000/svg';
+  const $=id=>document.getElementById(id);
+  const ease=t=>t<.5?2*t*t:-1+(4-2*t)*t;
+  const fade=(t,a,b)=>Math.max(0,Math.min(1,(t-a)/(b-a)));
+  function pos(f,t){
+    if(t<=f[0][0]) return [f[0][1],f[0][2]];
+    for(let i=1;i<f.length;i++) if(t<=f[i][0]){
+      const a=f[i-1],b=f[i],u=ease((t-a[0])/(b[0]-a[0]));
+      return [a[1]+(b[1]-a[1])*u,a[2]+(b[2]-a[2])*u];
+    }
+    const l=f[f.length-1]; return [l[1],l[2]];
+  }
+  function mk(tag,attrs){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+
+  let cur, t=0, playing=false, last=null, nodes={}, ovs=[];
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function load(i){
+    cur=PATTERNS[i]; t=0; playing=false; last=null;
+    $('title').textContent=cur.title; $('sub').textContent=cur.sub;
+    document.querySelectorAll('#tabs button').forEach((b,j)=>b.classList.toggle('on',j===i));
+    const pl=$('players'); pl.innerHTML=''; nodes={};
+    for(const id in cur.players){
+      const [lab,x,y]=cur.players[id];
+      const isGK=id==='GK', atk=id in ATK;
+      const g=mk('g',{});
+      g.appendChild(mk('circle',{r:isGK?11:12,fill:isGK?'#8A8F8B':atk?'var(--atk)':'var(--def)'}));
+      const tx=mk('text',{y:4,'text-anchor':'middle','font-size':10,fill:'#fff'}); tx.textContent=lab; g.appendChild(tx);
+      pl.appendChild(g); nodes[id]=g;
+      if(!cur.K[id]) cur.K[id]=[[0,x,y]];
+    }
+    const ov=$('overlays'); ov.innerHTML=''; ovs=[];
+    for(const o of cur.overlays){
+      const a=o.arrow?{fill:'none',stroke:'var(--atk)','stroke-width':2,'stroke-dasharray':'5 5',...o.attrs}:o.attrs;
+      const e=mk(o.tag,a); if(o.text) e.textContent=o.text;
+      ov.appendChild(e); ovs.push({e,o});
+    }
+    const c=$('controls'); c.querySelectorAll('[data-t]').forEach(b=>b.remove());
+    for(const [s,lab] of cur.caps){
+      const b=document.createElement('button'); b.dataset.t=s; b.textContent=lab;
+      b.addEventListener('click',()=>{playing=false;$('play').textContent='再生';t=s;render();});
+      c.appendChild(b);
+    }
+    $('play').textContent='再生';
+    render();
+  }
+
+  function render(){
+    for(const id in nodes){const [x,y]=pos(cur.K[id],t);nodes[id].setAttribute('transform',`translate(${x},${y})`);}
+    const [bx,by]=pos(cur.K.ball,t); $('ball').setAttribute('cx',bx); $('ball').setAttribute('cy',by);
+    for(const {e,o} of ovs) e.setAttribute('opacity',(o.op||1)*fade(t,o.in[0],o.in[1])*(1-fade(t,o.out[0],o.out[1])));
+    let html=cur.caps[0][2]; for(const c of cur.caps) if(t>=c[0]) html=c[2];
+    $('caption').innerHTML=html;
+    document.querySelectorAll('#controls [data-t]').forEach(b=>{
+      const s=+b.dataset.t, nx=cur.caps.find(c=>c[0]>s);
+      b.classList.toggle('on',t>=s&&(!nx||t<nx[0]));
+    });
+  }
+  function loop(now){
+    if(!playing) return;
+    if(last!==null) t+=(now-last)/1000*(reduce?.6:1);
+    last=now;
+    if(t>=cur.end){t=cur.end;playing=false;$('play').textContent='もう一度';}
+    render(); if(playing) requestAnimationFrame(loop);
+  }
+  $('play').addEventListener('click',()=>{
+    if(playing){playing=false;$('play').textContent='再生';return;}
+    if(t>=cur.end) t=0;
+    playing=true; last=null; $('play').textContent='一時停止'; requestAnimationFrame(loop);
+  });
+  PATTERNS.forEach((p,i)=>{const b=document.createElement('button');b.textContent=p.tab;b.addEventListener('click',()=>load(i));$('tabs').appendChild(b);});
+  load(0);
+})();
+</script>
+</body>
+</html>
